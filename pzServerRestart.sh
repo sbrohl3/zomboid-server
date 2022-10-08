@@ -19,25 +19,25 @@ sleep 1m
 printf "Rcon Client will now manage server restart sequence!\n"
 while true
 do
-  rcon -a 127.0.0.1:27015 -p Verschlimmbesserung69 "servermsg \"Server will restart in 4 hours\""
+  rcon -a 127.0.0.1:27015 -p yourpassword "servermsg \"Server will restart in 4 hours\""
   sleep 3h
-  rcon -a 127.0.0.1:27015 -p Verschlimmbesserung69 "servermsg \"Server will restart in 1 hour\""
+  rcon -a 127.0.0.1:27015 -p yourpassword "servermsg \"Server will restart in 1 hour\""
   sleep 55m
-  rcon -a 127.0.0.1:27015 -p Verschlimmbesserung69 "servermsg \"Server will restart in 5 minutes\""
+  rcon -a 127.0.0.1:27015 -p yourpassword "servermsg \"Server will restart in 5 minutes\""
   sleep 4m
-  rcon -a 127.0.0.1:27015 -p Verschlimmbesserung69 "servermsg \"Server will restart in 1 minute\""
+  rcon -a 127.0.0.1:27015 -p yourpassword "servermsg \"Server will restart in 1 minute\""
   sleep 55
-  rcon -a 127.0.0.1:27015 -p Verschlimmbesserung69 "servermsg \"Server preparing for restart...\""
+  rcon -a 127.0.0.1:27015 -p yourpassword "servermsg \"Server preparing for restart...\""
   sleep 1
-  rcon -a 127.0.0.1:27015 -p Verschlimmbesserung69 "servermsg \"Restart Imminent. Please disconnect from the server.\""
+  rcon -a 127.0.0.1:27015 -p yourpassword "servermsg \"Restart Imminent. Please disconnect from the server.\""
   sleep 1
-  rcon -a 127.0.0.1:27015 -p Verschlimmbesserung69 "servermsg \"Saving state & backing up world dictionary...\""
+  rcon -a 127.0.0.1:27015 -p yourpassword "servermsg \"Saving state & backing up world dictionary...\""
   sleep 1
-  rcon -a 127.0.0.1:27015 -p Verschlimmbesserung69 "servermsg \"Server preparing for restart...\""
+  rcon -a 127.0.0.1:27015 -p yourpassword "servermsg \"Server preparing for restart...\""
   sleep 1
-  rcon -a 127.0.0.1:27015 -p Verschlimmbesserung69 "save"
+  rcon -a 127.0.0.1:27015 -p yourpassword "save"
   sleep 1
-  rcon -a 127.0.0.1:27015 -p Verschlimmbesserung69 "quit"
+  rcon -a 127.0.0.1:27015 -p yourpassword "quit"
   sleep 5
 
   # Backing up server to tar.gz
