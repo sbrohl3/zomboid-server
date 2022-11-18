@@ -7,8 +7,9 @@
 ## Config
 server_local_ip=127.0.0.1
 local_rcon_port=27015
-rcon_password=password
+rcon_password=Replace_with_your_rcon_password
 three_hour_flag="False"
+restart_flag="False"
 
 ## Kill previous server instance(s) before starting for the first time
 printf "Cleaning up previous server instance (if any exist)!\n"
@@ -18,8 +19,8 @@ sleep 5
 
 ## Start server
 printf "Starting first server instance via script!\n"
-#nohup /home/pzuser/pzserver/./start-server.sh&
-#sleep 1m
+nohup /home/pzuser/pzserver/./start-server.sh&
+sleep 1m
 
 ## Initialize varialbe to act as a timer
 timer=`date +%s`
@@ -28,7 +29,7 @@ timer=`date +%s`
 start_timer=`date +%s`
 
 ## Set timer for when to check if any mods changed
-mod_check_time=$(expr $start_timer + 12) #00
+mod_check_time=$(expr $start_timer + 1200)
 
 
 function rcon_controller () {
@@ -63,15 +64,15 @@ do
   #echo $(expr $timer + 14) #400)
 
   ## 3 Hour timer warning
-  if (( $timer >= $(expr $start_timer + 10) )) &&  [[ $three_hour_flag == "False" ]]; then
+  if (( $timer >= $(expr $start_timer + 10800) )) &&  [[ $three_hour_flag == "False" ]]; then
     echo "Server will restart in 1 Hours."
     rcon -a $server_local_ip:$local_rcon_port -p $rcon_password "servermsg \"Server will restart in 1 hour\""
     three_hour_flag="True"
   fi;
 
   ## 4 Hour timer warning, shutdown, backup, and restart
-  if (( $timer >= $(expr $start_timer + 14) )) && [[ $three_hour_flag == "True" ]]; then
-    echo "Server has been up for 4 hours. Time to restart."
+  if ((( $timer >= $(expr $start_timer + 14400) )) && [[ $three_hour_flag == "True" ]]) || [[ $restart_flag == "True" ]]; then
+    echo "Server is preparing to restart."
     rcon_controller
 
     # Backing up server to tar.gz
@@ -90,23 +91,33 @@ do
     #nohup /home/pzuser/pzserver/./start-server.sh&
     sleep 1
 
+    ## Server start time
+    start_timer=`date +%s`
+
+    ## Set timer for when to check if any mods changed
+    mod_check_time=$(expr $start_timer + 1200) #00
+
+    restart_flag="False"
     three_hour_flag="False"
   fi;
 
   ## Run zomboid_soup script to determine if the server needs to restart on mod update
   if (( $timer >= $mod_check_time )); then
     printf "Python is running in the background...\n"
-    python3 zomboid_soup.py "--check"
-    mod_status=$?
-    echo $mod_status 
-    if (( ${mod_status} == 0 )); then
+    mod_status=`python3 zomboid_soup.py "--check"`
+    ## Remove comments below for debugging purposes
+    ## echo $mod_status ## This will return either Exit 1 or Exit 0 to signify True or False whether mods are up to date or not
+    ## echo $? # This will return 0 whether zomboid_soup fails or not
+    if [[ "${mod_status}" == "Exit 0" ]]; then
       printf "Everything is up to date...\n"
-    elif (( ${mod_status} == 1 )); then
+    elif [[ "${mod_status}" == "Exit 1" ]]; then
       printf "One or more server mods is out of sync. Preparing to reboot the server...\n"
+      python3 zomboid_soup.py --write
       rcon -a $server_local_ip:$local_rcon_port -p $rcon_password "servermsg \"One or more mods has been updated. The server must restart!\""
-      rcon_controller
+      #rcon_controller
+      restart_flag="True"
     fi;
-    mod_check_time=$(expr $(date +%s) + 12) #00
+    mod_check_time=$(expr $(date +%s) + 1200) #00
   fi;
  timer=`date +%s`
 done;

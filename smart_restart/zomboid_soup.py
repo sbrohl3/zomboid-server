@@ -25,9 +25,9 @@ class zomboid_Soup():
         ''' Constructor to declare variables used by the Zomboid Soup Scraping Class'''
         self.modlist_timestamps = []
         self.operation_mode = " "
-        self.server_ini = "/home/pzuser/Zomboid/Server/servertest.ini"
-        self.mod_csv = "/home/pzuser/Zomboid/Server/zomboid_mod_updateList.csv"
-        self.URL = "https://steamcommunity.com/sharedfiles/filedetails/?id="
+        self.server_ini = "/home/pzuser/Zomboid/Server/servertest.ini" ## Change this variable to the location of your servertest.ini
+        self.mod_csv = "/home/pzuser/Zomboid/Server/zomboid_mod_updateList.csv" ## You can change the directory and filename, but it must end in .csv
+        self.URL = "https://steamcommunity.com/sharedfiles/filedetails/?id=" ## DO NOT TOUCH
         self.workshop_ids_column = pd.DataFrame()
 
     def checkAndCompare(self):
@@ -35,23 +35,26 @@ class zomboid_Soup():
         logging.info(f"Checking if anything has changed...")
         current_mod_list = pd.read_csv(self.mod_csv)
 
-        ## Convert datatypes to string
-        self.workshop_ids_column['updated_timestamp'] = self.workshop_ids_column['updated_timestamp'].astype('str')
-        current_mod_list['updated_timestamp'] = current_mod_list['updated_timestamp'].astype('str').fillna(value="NaN")
+        ## Fix weird issue with NaN's interpreted as strings in some cases
+        self.workshop_ids_column['updated_timestamp'] = self.workshop_ids_column['updated_timestamp'].replace('NaN', np.nan)
+        current_mod_list['updated_timestamp'] = current_mod_list['updated_timestamp'].replace('NaN', np.nan)
 
         ## Enable logging.DEBUG to view DataFrame output
         logging.debug("From File:")
-        logging.debug(current_mod_list ['updated_timestamp'])
+        logging.debug(current_mod_list['updated_timestamp'])
         logging.debug("From Workshop")
         logging.debug(self.workshop_ids_column['updated_timestamp'])
 
-        compare_cols = current_mod_list ['updated_timestamp'].equals(self.workshop_ids_column['updated_timestamp'])
+        compare_cols = current_mod_list['updated_timestamp'].equals(self.workshop_ids_column['updated_timestamp'])
         logging.debug(f"Local mods are currently up to date: {compare_cols}")
+
         ## If mods are in sync between local and workshop, return True, else return False
         if compare_cols:
-            sys.exit(0)
+            print("Exit 0") ## Bash script uses this print statement to interpret status. DO NOT REMOVE!
+            exit(0)
         else:
-            sys.exit(1)
+            print("Exit 1") ## This one too!
+            exit(1)
 
     def openServerConfig(self):
         ''' A method to open servertest.ini config files and return the workshop mod ID list as a Panadas DataFrame column '''
@@ -95,12 +98,12 @@ class zomboid_Soup():
 
                         mod_last_updated_timestamp = timestamp_list
                         if mod_last_updated_timestamp == []:
-                            self.modlist_timestamps.append("NaN")
+                            self.modlist_timestamps.append(np.nan)
                         else:
                             modified_timestamp = mod_last_updated_timestamp[0].strip().replace("@","").replace("  ", " ")
                             self.modlist_timestamps.append(modified_timestamp)
                     except:
-                        self.modlist_timestamps.append("NaN")
+                        self.modlist_timestamps.append(np.nan)
                 
                 ## Merge timestamps and mods into one dataframe
                 self.workshop_ids_column.insert(1,"updated_timestamp", self.modlist_timestamps, True)
