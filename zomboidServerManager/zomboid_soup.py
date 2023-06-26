@@ -37,13 +37,13 @@ class zomboid_Soup():
         current_mod_list['updated_timestamp'] = current_mod_list['updated_timestamp'].replace('NaN', np.nan)
 
         ## Enable logging.DEBUG to view DataFrame output
-        logging.debug("From File:")
-        logging.debug(current_mod_list['updated_timestamp'])
-        logging.debug("From Workshop")
-        logging.debug(self.workshop_ids_column['updated_timestamp'])
+        # logging.debug("From File:")
+        # logging.debug(current_mod_list['updated_timestamp'])
+        # logging.debug("From Workshop")
+        # logging.debug(self.workshop_ids_column['updated_timestamp'])
 
         compare_cols = current_mod_list['updated_timestamp'].equals(self.workshop_ids_column['updated_timestamp'])
-        logging.debug(f"Local mods are currently up to date: {compare_cols}")
+        logging.info(f"Local mods are currently up to date: {compare_cols}")
 
         ## If mods are in sync between local and workshop, return True, else return False
         if compare_cols:
@@ -79,7 +79,7 @@ class zomboid_Soup():
                 logging.info("Scraping Steam Workshop....")
                 for id in self.workshop_ids_column["workshop_id"]:
                     mod_url = self.URL+str(id)
-                    logging.debug(mod_url)
+                    #logging.debug(mod_url)
 
                     r = requests.get(mod_url)
 
@@ -119,14 +119,14 @@ class zomboid_Soup():
                     \n\t--check:\n\t\tCrawls the Steam workshop to check if mods are updated by comparing them against the CSV file created by --write.\
                     \n\t\tReturns True to stdout if the last updated timestamps crawled from Steam matches the CSV. Returns False if not.\
                     \n\n\t© 2023 - Free to share and distribute\n\t\t Created by:  Pink9\n\t\t Version: 1.0")
-                sys.exit(1)
+                return
             else:
                 print("Invalid argument provided. Specify either --write or --check after the script name to get started, or use -h or --help for proper usage of this script.")
-                sys.exit(1)
+                return
         except Exception as e:
             print(e)
             print("No argument provided. Specify either --write or --check after the script name to get started, or use -h or --help for proper usage of this script.")
-            sys.exit(1)
+            return
 
     def writeToCSV(self):
         ''' Write mod ID and mod last update timestamp to CSV '''
