@@ -1,0 +1,6 @@
+beautifulsoup4==4.12.2
+numpy==1.19.4
+pandas==2.0.2
+psutil==5.9.5
+Requests==2.31.0
+schedule==1.2.0
