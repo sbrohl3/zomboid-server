@@ -62,9 +62,10 @@ class zomboidServerController():
         self.mod_csv    = "/home/user/Zomboid/Server/zomboid_mod_updateList.csv" # specify path where to save mod_updateList.csv
         ###########################################################
 
-        ## Assign server World Dictionary backup path to variable
+        ## Assign server World Dictionary & backup paths to variable
         ###########################################################
-        self.backup_path  = "/home/user/Zomboid/Saves/Multiplayer/servertest/"
+        self.backup_path    = "/home/pzuser/Zomboid/backups/"
+        self.worldDict_path = "/home/user/Zomboid/Saves/Multiplayer/servertest/"
         ###########################################################
 
         ## Server Shell and binary process names -- DO NOT MODDIFY
@@ -119,7 +120,7 @@ class zomboidServerController():
         ''' A method to backup the Zomboid server '''
         # Back up server to tar.gz
         print(f"{self.current_time.now()} -- Backing up Server!\n")
-        backup_server_cmd = f"tar -zcpf /home/pzuser/Zomboid/backups/\"`date +%Y%m%d-%H%M%S`\"_{server_status}_serverWorldSave.tgz --absolute-names {self.backup_path}"
+        backup_server_cmd = f"tar -zcpf {self.backup_path}\"`date +%Y%m%d-%H%M%S`\"_{server_status}_serverWorldSave.tgz --absolute-names {self.worldDict_path}"
         sp.call(backup_server_cmd, shell=True)
         t.sleep(10)
 
