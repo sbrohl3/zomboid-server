@@ -33,7 +33,11 @@ from zomboid_soup import zomboid_Soup
 #
 # Then run this script with Python3 like so:
 #
-#     python3 zomboid_server_manager.py
+#           python3 zomboid_server_manager.py
+#
+# Add to Crontab (Must be added to use reboot_counter): 
+#           @reboot /usr/bin/python3 zomboid_server_manager.py
+#
 #
 # NOTE: zomboid_soup.py must be in the same folder as zomboid_server_manager.py
 ################################################################################
@@ -43,6 +47,11 @@ class zomboidServerController():
     
     def __init__(self):
         ''' Constructor for Zomboid Server Cotnroller Variables '''
+        ## Reboot counter - Tracks when to restart the host pc 
+        ###########################################################
+        self.reboot_counter         = 0
+        self.reboot_counter_enabled = False
+        ###########################################################
 
         ## A flag for managing state of the server
         ###########################################################
@@ -62,10 +71,9 @@ class zomboidServerController():
         self.mod_csv    = "/home/user/Zomboid/Server/zomboid_mod_updateList.csv" # specify path where to save mod_updateList.csv
         ###########################################################
 
-        ## Assign server World Dictionary & backup paths to variable
+        ## Assign server World Dictionary backup path to variable
         ###########################################################
-        self.backup_path    = "/home/pzuser/Zomboid/backups/"
-        self.worldDict_path = "/home/user/Zomboid/Saves/Multiplayer/servertest/"
+        self.backup_path  = "/home/user/Zomboid/Saves/Multiplayer/servertest/"
         ###########################################################
 
         ## Server Shell and binary process names -- DO NOT MODDIFY
@@ -120,10 +128,21 @@ class zomboidServerController():
         ''' A method to backup the Zomboid server '''
         # Back up server to tar.gz
         print(f"{self.current_time.now()} -- Backing up Server!\n")
-        backup_server_cmd = f"tar -zcpf {self.backup_path}\"`date +%Y%m%d-%H%M%S`\"_{server_status}_serverWorldSave.tgz --absolute-names {self.worldDict_path}"
+        backup_server_cmd = f"tar -zcpf /home/pzuser/Zomboid/backups/\"`date +%Y%m%d-%H%M%S`\"_{server_status}_serverWorldSave.tgz --absolute-names {self.backup_path}"
         sp.call(backup_server_cmd, shell=True)
         t.sleep(10)
 
+    def rebootHost(self):
+        ''' A method to reboot the host PC after the server has rebooted three times '''
+        print(f"ZOMBOID SERVER HAS RESTARTED {self.reboot_counter} TIMES.\nInitiating a reboot of the host PC...")
+        result = sp.run(["uname", "-a"], capture_output=True)
+        result = result.stdout.strip().decode()
+        ## Check if server is hosted in a WSL instance or not
+        if "Microsoft" in result:
+            sp.call("shutdown.exe -f")
+        else:
+            sp.call("reboot --force")
+        
     def stopServer(self):
         ''' A method for stopping instances of a zomboid server '''
         ## Reset all server state flags
@@ -180,6 +199,14 @@ class zomboidServerController():
             if cmd_flag == "restart":
                 print(f"\n{self.current_time.now()} -- {cmd_flag} sent. Restarting server.")
                 try:
+                    if self.reboot_counter >= 3:
+                        self.reboot_counter = 0
+                        self.backupWorld()
+                        self.stopServer()
+                        self.rebootHost()
+                except Exception as error:
+                    print(f"{self.current_time.now()} -- ERROR: {error}")
+                try:
                     self.rcon_command = "\"servermsg \\\"Server will restart in 5 minutes...\\\"\""
                     sendMessage()
                     self.restart_flag = True
@@ -213,6 +240,10 @@ class zomboidServerController():
                 self.stopServer()
                 t.sleep(10)
                 self.startServer()
+                if self.reboot_counter_enabled:
+                    self.reboot_counter += 1 
+                else:
+                    print("Reboot counter disabled. Manual reboot is required for the host PC.")
         
             if cmd_flag == "quit":
                 print(f"\n{self.current_time.now()} -- {cmd_flag} sent. Shutting down server.")
