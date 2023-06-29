@@ -2,6 +2,7 @@
 
 ## Standard imports
 import os
+import json
 import queue
 import time as t
 import psutil as ps
@@ -45,55 +46,82 @@ from zomboid_soup import zomboid_Soup
 class zomboidServerController():
     ''' A zomboid server controller class '''
     
-    def __init__(self):
+    def __init__(self) -> None:
         ''' Constructor for Zomboid Server Cotnroller Variables '''
-        ## Reboot counter - Tracks when to restart the host pc 
-        ###########################################################
-        self.reboot_counter         = 0
-        self.reboot_counter_enabled = False
-        ###########################################################
+        try:
+            if os.path.exists("server_config.json"):
+                with open("server_config.json", "r") as config:
+                    config_data = json.load(config)
+                
+                ## Reboot counter - Tracks when to restart the host pc 
+                ###########################################################
+                self.reboot_counter         = 0 # - Don't Modify
+                self.reboot_counter_enabled = config_data["server_config"]["reboot_enabled"]
+                self.reboot_threshold       = config_data["server_config"]["reboot_threshold"]
+                ###########################################################
 
-        ## A flag for managing state of the server
-        ###########################################################
-        self.one_hour_flag = False
-        self.restart_flag  = False
-        self.start_flag    = False
-        ###########################################################
+                ## A flag for managing state of the server - Don't Modify
+                ###########################################################
+                self.one_hour_flag = False
+                self.restart_flag  = False
+                self.start_flag    = False
+                ###########################################################
 
-        ## Current Datetime
-        ###########################################################
-        self.current_time = dt.datetime
-        ###########################################################
-        
-        ## Zomboid Soup Paths
-        ###########################################################
-        self.server_ini = "/home/user/Zomboid/Server/servertest.ini" # Specify path to server.init
-        self.mod_csv    = "/home/user/Zomboid/Server/zomboid_mod_updateList.csv" # specify path where to save mod_updateList.csv
-        ###########################################################
+                ## Current Datetime - Don't Modify
+                ###########################################################
+                self.current_time = dt.datetime
+                ###########################################################
+                
+                ## Path to start-server script 
+                ###########################################################
+                self.start_server_cmd = config_data["server_config"]["start_server_command"]
+                ###########################################################
+                
+                ## Zomboid Soup Paths
+                ###########################################################
+                self.server_ini = config_data["server_config"]["server_ini_path"] # Specify path to server.init
+                self.mod_csv    = config_data["server_config"]["mod_csv_path"] # specify path where to save mod_updateList.csv
+                ###########################################################
 
-        ## Assign server World Dictionary backup path to variable
-        ###########################################################
-        self.backup_path  = "/home/user/Zomboid/Saves/Multiplayer/servertest/"
-        ###########################################################
+                ## Define backup folder path and world dictionary location
+                ###########################################################
+                self.backup_path = config_data["server_config"]["backup_folder_path"] ## Location of server backups
+                self.world_path  = config_data["server_config"]["world_dict_path"]
+                ###########################################################
 
-        ## Server Shell and binary process names -- DO NOT MODDIFY
-        ###########################################################
-        self.server_shell_process_name  = "start-server.sh"
-        self.server_binary_process_name = "ProjectZomboid64"
-        ###########################################################
+                ## Server Shell and binary process names
+                ###########################################################
+                self.server_shell_process_name  = config_data["server_config"]["server_shell_process_name"]
+                self.server_binary_process_name = config_data["server_config"]["server_binary_process_name"]
+                ###########################################################
 
-        ## Rcon Config
-        ##########################################################
-        self.server_local_ip  = "127.0.0.1"
-        self.local_rcon_port  = 27015
-        self.rcon_password    = "rcon_password"
-        #########################################################
+                ## Rcon Config 
+                ##########################################################
+                self.server_local_ip  = config_data["server_config"]["rcon_local_ip"]
+                self.local_rcon_port  = config_data["server_config"]["rcon_local_port"]
+                self.rcon_password    = config_data["server_config"]["rcon_password"]
+                #########################################################
 
-        ## Rcon Command -- DO NOT MODIFY
-        #########################################################        
-        self.rcon_command = "" ## Variable to hold Rcon command
-        self.rcon_message = rf"rcon --address {self.server_local_ip}:{self.local_rcon_port} --password {self.rcon_password} "
-        #########################################################
+                ## Rcon Command - Don't Modify
+                #########################################################        
+                self.rcon_command = "" ## Variable to hold Rcon command
+                self.rcon_message = rf"rcon --address {self.server_local_ip}:{self.local_rcon_port} --password {self.rcon_password} "
+                #########################################################
+            
+            else:
+                print("Unable to read server_config.json.\nPlease re-download the repo and ensure it's in the same directory as zomboid_server_manager.py")
+                exit(1)
+        except Exception as error:
+            print(f"ERROR: Could not initialize server configuration.]n{error}")
+            exit(1)
+
+    def backupWorld(self, server_status):
+        ''' A method to backup the Zomboid server '''
+        # Back up server to tar.gz
+        print(f"{self.current_time.now()} -- Backing up Server!\n")
+        backup_server_cmd = f"tar -zcpf {self.backup_path}/\"`date +%Y%m%d-%H%M%S`\"_{server_status}_serverWorldSave.tgz --absolute-names {self.world_path}"
+        sp.call(backup_server_cmd, shell=True)
+        t.sleep(10)
 
     def coldStart(self):
         ''' A method for starting the server for the first boot '''
@@ -122,15 +150,7 @@ class zomboidServerController():
             # Checks whether a scheduled task
             # is pending to run or not
             s.run_pending()
-            t.sleep(1)
-
-    def backupWorld(self, server_status):
-        ''' A method to backup the Zomboid server '''
-        # Back up server to tar.gz
-        print(f"{self.current_time.now()} -- Backing up Server!\n")
-        backup_server_cmd = f"tar -zcpf /home/pzuser/Zomboid/backups/\"`date +%Y%m%d-%H%M%S`\"_{server_status}_serverWorldSave.tgz --absolute-names {self.backup_path}"
-        sp.call(backup_server_cmd, shell=True)
-        t.sleep(10)
+            t.sleep(1)       
 
     def rebootHost(self):
         ''' A method to reboot the host PC after the server has rebooted three times '''
@@ -142,35 +162,7 @@ class zomboidServerController():
             sp.call("shutdown.exe -f")
         else:
             sp.call("reboot --force")
-        
-    def stopServer(self):
-        ''' A method for stopping instances of a zomboid server '''
-        ## Reset all server state flags
-        self.one_hour_flag = False
-        self.restart_flag  = False
-        self.start_flag    = False
-        
-        ## stop server process
-        print(f"{self.current_time.now()} -- Cleaning up previous server instance (if any exist)...\n")
-        for proc in ps.process_iter():
-            # check whether the process name matches
-            if proc.name() in [self.server_shell_process_name,self.server_binary_process_name]:
-                proc.kill()
-        t.sleep(5)
-
-    def startServer(self):
-        ''' A method for starting a zomboid server instance '''
-        ## Start server
-        print(f"{self.current_time.now()} -- Starting first server instance via script!\n")
-        print('=== Server Running. Press CTRL-C to safely shutdown, backup, and exit the server. ===\n')
-        self.backupWorld("start")
-        start_server_cmd = "nohup /home/pzuser/pzserver/./start-server.sh >/dev/null 2>&1 &"
-        sp.call(start_server_cmd, shell=True)
-        self.start_flag = True ## A flag to manage server state
-        self.serverMessenger("modUpdateCheck") ## Update modList.csv
-        t.sleep(300)
-        self.serverMessenger("4h")
-
+            
     def serverMessenger(self, cmd_flag):
         ''' A method for controlling the Zomboid Server and sending messages via RCON '''
         ## Send messages to the server
@@ -199,7 +191,7 @@ class zomboidServerController():
             if cmd_flag == "restart":
                 print(f"\n{self.current_time.now()} -- {cmd_flag} sent. Restarting server.")
                 try:
-                    if self.reboot_counter >= 3:
+                    if self.reboot_counter >= self.reboot_threshold:
                         self.reboot_counter = 0
                         self.backupWorld()
                         self.stopServer()
@@ -299,7 +291,6 @@ class zomboidServerController():
                             sendMessage()
                         except Exception as error:
                             print(f"{self.current_time.now()} --\nERROR: {error}")
-                        modUpdateThread("--write", data_queue)
                         self.serverMessenger("restart")
                         return
                 
@@ -311,6 +302,33 @@ class zomboidServerController():
 
         except Exception as error:
             print(f"{self.current_time.now()} -- {error}")
+
+    def startServer(self):
+        ''' A method for starting a zomboid server instance '''
+        ## Start server
+        print(f"{self.current_time.now()} -- Starting first server instance via script!\n")
+        print('=== Server Running. Press CTRL-C to safely shutdown, backup, and exit the server. ===\n')
+        self.backupWorld("start")
+        sp.call(self.start_server_cmd, shell=True)
+        self.start_flag = True ## A flag to manage server state
+        self.serverMessenger("modUpdateCheck") ## Update modList.csv
+        t.sleep(300)
+        self.serverMessenger("4h")
+
+    def stopServer(self):
+        ''' A method for stopping instances of a zomboid server '''
+        ## Reset all server state flags
+        self.one_hour_flag = False
+        self.restart_flag  = False
+        self.start_flag    = False
+        
+        ## stop server process
+        print(f"{self.current_time.now()} -- Cleaning up previous server instance (if any exist)...\n")
+        for proc in ps.process_iter():
+            # check whether the process name matches
+            if proc.name() in [self.server_shell_process_name,self.server_binary_process_name]:
+                proc.kill()
+        t.sleep(5)
 
 if __name__ == "__main__":    
     print(" ____          _         _    _   ___                        __  __                              ")
