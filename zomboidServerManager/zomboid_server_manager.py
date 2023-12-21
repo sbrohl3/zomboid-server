@@ -338,9 +338,7 @@ if __name__ == "__main__":
     version = "Version - 1.8 (12/20/2023)\nCreated by https://steamcommunity.com/id/Mr_Pink47/\nDiscord: pink9\n© 2023 - Open Source - Free to share and modify"
     print(version)
     print("=================================================================================================")           
-    ## Create an instance of the zomboid server conroller class
-    zsc = zomboidServerController()
-    zsc.coldStart()
+    zomboidServerController().coldStart()
 
 
 
