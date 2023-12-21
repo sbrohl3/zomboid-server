@@ -13,13 +13,13 @@ import threading as th
 from signal import signal, SIGINT
 
 ## import custom class for scraping mods list
-from zomboid_soup import zomboid_Soup
+from zomboidSoup import zomboidSoup
 
 ################################################################################
 #  Created by https://steamcommunity.com/id/Mr_Pink47/
 #  Discord: pink9
 #
-#  Version - 1.0 (06/18/2023)
+#  Version - 1.8 (12/20/2023)
 #  © 2023 - Open Source - Free to share and modify
 #
 # To use this program, first install all Python3 dependencies:
@@ -34,13 +34,13 @@ from zomboid_soup import zomboid_Soup
 #
 # Then run this script with Python3 like so:
 #
-#           python3 zomboid_server_manager.py
+#           python3 /path/to/script/zomboid_server_manager.py
 #
 # Add to Crontab (Must be added to use reboot_counter): 
-#           @reboot /usr/bin/python3 zomboid_server_manager.py
+#           @reboot /usr/bin/python3 /path/to/script/zomboid_server_manager.py
 #
 #
-# NOTE: zomboid_soup.py must be in the same folder as zomboid_server_manager.py
+# NOTE: zomboidSoup.py must be in the same folder as zomboid_server_manager.py
 ################################################################################
 
 class zomboidServerController():
@@ -72,7 +72,7 @@ class zomboidServerController():
                 self.current_time = dt.datetime
                 ###########################################################
                 
-                ## Path to start-server script 
+                ## Path to start-server script
                 ###########################################################
                 self.start_server_cmd = config_data["server_config"]["start_server_command"]
                 ###########################################################
@@ -104,18 +104,18 @@ class zomboidServerController():
 
                 ## Rcon Command - Don't Modify
                 #########################################################        
-                self.rcon_command = "" ## Variable to hold Rcon command
-                self.rcon_message = rf"rcon --address {self.server_local_ip}:{self.local_rcon_port} --password {self.rcon_password} "
+                self.rcon_conn_string = rf"rcon --address {self.server_local_ip}:{self.local_rcon_port} --password {self.rcon_password} "
                 #########################################################
             
             else:
                 print("Unable to read server_config.json.\nPlease re-download the repo and ensure it's in the same directory as zomboid_server_manager.py")
                 exit(1)
+
         except Exception as error:
-            print(f"ERROR: Could not initialize server configuration.]n{error}")
+            print(f"ERROR: Could not initialize server configuration.\n{error}")
             exit(1)
 
-    def backupWorld(self, server_status):
+    def backupWorld(self, server_status) -> None:
         ''' A method to backup the Zomboid server '''
         # Back up server to tar.gz
         print(f"{self.current_time.now()} -- Backing up Server!\n")
@@ -123,13 +123,20 @@ class zomboidServerController():
         sp.call(backup_server_cmd, shell=True)
         t.sleep(10)
 
-    def coldStart(self):
+    def coldStart(self) -> None:
         ''' A method for starting the server for the first boot '''
+        
+        ## Track number of times user presses Ctrl+C (Sigint)
+        self.sigint_count = 0
 
         def handler(signal_received, frame):
             ''' A handler for killing the program with Ctrl+C '''
-            # Handle any cleanup here
-            print('\nCTRL-C detected. Exiting gracefully. Please wait...')
+            # Handle user shutdown
+            print(f'\n{self.current_time.now()} -- CTRL-C detected. Exiting gracefully. Please wait...\n')
+            if self.sigint_count >= 1:
+               print(f"{self.current_time.now()} -- CTRL-C received twice; forcing immediate server shutdown!\n")
+               exit(0)
+            self.sigint_count += 1
             self.serverMessenger("quit")
             exit(0)
        
@@ -150,104 +157,96 @@ class zomboidServerController():
             # Checks whether a scheduled task
             # is pending to run or not
             s.run_pending()
-            t.sleep(1)       
+            t.sleep(1)
 
-    def rebootHost(self):
-        ''' A method to reboot the host PC after the server has rebooted three times '''
-        print(f"ZOMBOID SERVER HAS RESTARTED {self.reboot_counter} TIMES.\nInitiating a reboot of the host PC...")
+    def rebootHost(self) -> None:
+        ''' A method to reboot the host PC after the server has rebooted x number of times '''
+        print(f"\n####ZOMBOID SERVER HAS RESTARTED {self.reboot_counter} TIMES.\n####Initiating a reboot of the host PC...\n")
         result = sp.run(["uname", "-a"], capture_output=True)
         result = result.stdout.strip().decode()
         ## Check if server is hosted in a WSL instance or not
         if "Microsoft" in result:
-            sp.call("shutdown.exe -f")
+            sp.call(["/mnt/c/WINDOWS/system32/shutdown.exe", "/r"])
+            sp.call(["/mnt/c/WINDOWS/system32/shutdown.exe", "/f"])
         else:
+            ## In case of Linux, run reboot with --force
             sp.call("reboot --force")
             
-    def serverMessenger(self, cmd_flag):
+    def serverMessenger(self, cmd_flag) -> None:
         ''' A method for controlling the Zomboid Server and sending messages via RCON '''
         ## Send messages to the server
-        def sendMessage():
+        def sendMessage(rcon_command):
             ''' A helper method to perform a subprocess (system) call to send an rcon message to the zomboid server instance '''
-            sp.call(self.rcon_message + self.rcon_command, shell=True)
+            sp.call(self.rcon_conn_string + rcon_command, shell=True)
         
         try:
             if cmd_flag   == "4h":
                 print(f"{self.current_time.now()} -- {cmd_flag} sent. Sending 4 hours before restart warning.")
                 try:
-                    self.rcon_command = "\"servermsg \\\"Server will restart in 4 hours\\\"\""
-                    sendMessage()
+                    sendMessage("\"servermsg \\\"Server will restart in 4 hours\\\"\"")
                 except Exception as error:
                     print(f"{self.current_time.now()} -- ERROR: {error}")
             
             if cmd_flag == "1h":
                 print(f"\n{self.current_time.now()} -- {cmd_flag} sent. Sending 1h before restart warning.")
                 try:
-                    self.rcon_command = "\"servermsg \\\"Server will restart in 1 hour\\\"\""
-                    sendMessage()
+                    sendMessage("\"servermsg \\\"Server will restart in 1 hour\\\"\"")
                     self.one_hour_flag = True
                 except Exception as error:
                     print(f"{self.current_time.now()} -- ERROR: {error}")
             
             if cmd_flag == "restart":
-                print(f"\n{self.current_time.now()} -- {cmd_flag} sent. Restarting server.")
+                print(f"\n{self.current_time.now()} -- {cmd_flag} sent. Restarting server.\n")
                 try:
-                    if self.reboot_counter >= self.reboot_threshold:
-                        self.reboot_counter = 0
-                        self.backupWorld()
+                    if self.reboot_counter == self.reboot_threshold:
+                        self.backupWorld("restart")
                         self.stopServer()
                         self.rebootHost()
                 except Exception as error:
                     print(f"{self.current_time.now()} -- ERROR: {error}")
                 try:
-                    self.rcon_command = "\"servermsg \\\"Server will restart in 5 minutes...\\\"\""
-                    sendMessage()
+                    sendMessage("\"servermsg \\\"Server will restart in 5 minutes...\\\"\"")
                     self.restart_flag = True
                     t.sleep(300)
-                    self.rcon_command = "\"servermsg \\\"Server will restart in 1 minutes...\\\"\""
-                    sendMessage()
+                    sendMessage("\"servermsg \\\"Server will restart in 1 minutes...\\\"\"")
                     t.sleep(60)
-                    self.rcon_command = "\"servermsg \\\"Server preparing for restart...\\\"\""
-                    sendMessage()
+                    sendMessage("\"servermsg \\\"Server preparing for restart...\\\"\"")
                     t.sleep(1)
-                    self.rcon_command = "\"servermsg \\\"Restart imminent! Please disconnect from the server!\\\"\""
-                    sendMessage()
+                    sendMessage("\"servermsg \\\"Restart imminent! Please disconnect from the server!\\\"\"")
                     t.sleep(1)
-                    self.rcon_command = "\"servermsg \\\"Saving Server State and backing up World Dictionary.\\\"\""
-                    sendMessage()
+                    sendMessage("\"servermsg \\\"Saving Server State and backing up World Dictionary.\\\"\"")
                     t.sleep(1)
-                    self.rcon_command = "\"servermsg \\\"Server is preparing to restart.\\\"\""
-                    sendMessage()
+                    sendMessage("\"servermsg \\\"Server is preparing to restart.\\\"\"")
                     t.sleep(1)
-                    self.rcon_command = "\"save\""
-                    sendMessage()
+                    sendMessage("\"save\"")
                     t.sleep(1)
                     self.backupWorld(cmd_flag)
                     t.sleep(5)
-                    self.rcon_command = "\"quit\""
-                    sendMessage()
+                    sendMessage("\"quit\"")
 
                 except Exception as error:
                     print(f"{self.current_time.now()} -- ERROR: {error}")
+
+                ## Stop & Restart the server
                 t.sleep(5)
                 self.stopServer()
                 t.sleep(10)
                 self.startServer()
+
                 if self.reboot_counter_enabled:
                     self.reboot_counter += 1 
+                    print(f"#### ZOMBOID SERVER HAS RESTARTED: {self.reboot_counter} times\n#### PC will restart on reboot #: {self.reboot_threshold}")
                 else:
                     print("Reboot counter disabled. Manual reboot is required for the host PC.")
         
             if cmd_flag == "quit":
                 print(f"\n{self.current_time.now()} -- {cmd_flag} sent. Shutting down server.")
                 try:
-                    self.rcon_command = "\"servermsg \\\"Server is shutting down.\\\"\""
-                    sendMessage()
-                    self.rcon_command = "\"save\""
-                    sendMessage()
+                    sendMessage("\"servermsg \\\"Server is shutting down.\\\"\"")
+                    sendMessage("\"save\"")
                     t.sleep(5)
                     self.backupWorld(cmd_flag)
-                    self.rcon_command = "\"quit\""
-                    sendMessage()
+                    sendMessage("\"quit\"")
                     t.sleep(5)
                     self.stopServer()
                 except Exception as error:
@@ -255,61 +254,60 @@ class zomboidServerController():
             
             if cmd_flag == "modUpdateCheck":
                 if self.one_hour_flag and self.restart_flag:
-                    print("Server preapring to restart. Cancelling mod update check.\n")
+                    print("Server preparing to restart. Cancelling mod update check.\n")
                     return
                 
                 ## Instantiate ZomboidSoup class to variable
-                zs = zomboid_Soup()
-
-                ## Initialize paths to server.ini and mod.csv in Zomboid_soup class
-                zs.server_ini = self.server_ini
-                zs.mod_csv    = self.mod_csv
+                zs = zomboidSoup(self.server_ini, self.mod_csv)
 
                 ## Queue to grab the state of current server mods
-                data_queue = queue.Queue()
+                response_queue = queue.Queue()
 
-                def modUpdateThread(arg, data_queue):
+                def modUpdateThread(arg, response_queue):
                     ''' A helper method for creating threads for the updating the zomboid server modlist '''
-                    ## Thread zomboid_Soup instance for faster results and better interoperability with other scripts
-                    thread = th.Thread(target=zs.scrapeSteamWorkshop,args=(arg ,data_queue,), daemon=True)
+                    ## Thread zomboidSoup instance for faster results and better interoperability with other scripts
+                    thread = th.Thread(target=zs.scrapeSteamWorkshop,args=(arg ,response_queue,), daemon=True)
                     thread.start()
-                    thread.join()
+                   # thread.join()
 
-                if  os.path.exists(self.mod_csv) and not self.start_flag:
+                if os.path.exists(self.mod_csv) and not self.start_flag:
                     ## Check if the current modsList.csv has updated
-                    modUpdateThread("--check", data_queue)
-                    result = data_queue.get()
+                    modUpdateThread("--check", response_queue)
+                    result = response_queue.get()
 
                     if result == 0:
-                        print(f"\n{self.current_time.now()} -- Mods are in Sync. Nothing else to do.")
+                        print(f"{self.current_time.now()} -- Mods are in sync. Nothing else to do.\n")
                         return
 
                     elif result == 1:
-                        print("\nMods out of sync. Preparing to restart server!")
+                        print(f"{self.current_time.now()} -- Mods out of sync. Preparing to restart server!\n")
                         try:
-                            self.rcon_command = "\"servermsg \\\"One or more mods have updated and the server must restart.\\\"\""
-                            sendMessage()
+                            sendMessage("\"servermsg \\\"One or more mods have updated and the server must restart.\\\"\"")
                         except Exception as error:
-                            print(f"{self.current_time.now()} --\nERROR: {error}")
+                            print(f"{self.current_time.now()} -- ERROR: {error}\n")
                         self.serverMessenger("restart")
                         return
+                    else:
+                        print(f"{self.current_time.now()} -- Error with synchronizing mods. Skipping sync.\n")
                 
                 elif not os.path.exists(self.mod_csv) or self.start_flag:
                     ## Mods are updated on server start, so only write updates to modList
-                    modUpdateThread("--write", data_queue)
+                    print(f"{self.current_time.now()} -- Server started; updating modlist CSV.")
+                    modUpdateThread("--write", response_queue)
                     self.start_flag = False
                     return
 
         except Exception as error:
-            print(f"{self.current_time.now()} -- {error}")
+            print(f"{self.current_time.now()} -- ERROR {error}")
 
     def startServer(self):
         ''' A method for starting a zomboid server instance '''
         ## Start server
         print(f"{self.current_time.now()} -- Starting first server instance via script!\n")
-        print('=== Server Running. Press CTRL-C to safely shutdown, backup, and exit the server. ===\n')
+        print('#### Server instance started! Press CTRL-C to safely shutdown, backup, and exit the server. ####\n')
         self.backupWorld("start")
         sp.call(self.start_server_cmd, shell=True)
+        print(f"{self.current_time.now()} -- Now running server-start.sh script...\nCommand: {self.start_server_cmd}")
         self.start_flag = True ## A flag to manage server state
         self.serverMessenger("modUpdateCheck") ## Update modList.csv
         t.sleep(300)
@@ -337,7 +335,7 @@ if __name__ == "__main__":
     print("/___\___/_|_|_|_.__/\___/_\__,_| |___/\___|_|  \_/\___|_|   |_|  |_\__,_|_||_\__,_\__, \___|_|   ")
     print("                                                                                  |___/          ")
     print("=================================================================================================")
-    version = "Version - 1.0 (06/18/2023)\nCreated by https://steamcommunity.com/id/Mr_Pink47/\nDiscord: pink9\n© 2023 - Open Source - Free to share and modify"
+    version = "Version - 1.8 (12/20/2023)\nCreated by https://steamcommunity.com/id/Mr_Pink47/\nDiscord: pink9\n© 2023 - Open Source - Free to share and modify"
     print(version)
     print("=================================================================================================")           
     ## Create an instance of the zomboid server conroller class
