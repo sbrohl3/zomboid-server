@@ -19,12 +19,13 @@ from zomboidSoup import zomboidSoup
 #  Created by https://steamcommunity.com/id/Mr_Pink47/
 #  Discord: pink9
 #
-#  Version - 1.8 (12/20/2023)
-#  © 2023 - Open Source - Free to share and modify
+#  Version - 1.9 (01/04/2024)
+#  © 2024 - Open Source - Free to share and modify
 #
 # To use this program, first install all Python3 dependencies:
 #
 #     python3 -m pip install -r requirements.txt
+#        (I recommend using a venv for this; Python>=3.10 )
 #
 # Then ensure you have this rcon client installed into your Linux server
 #
@@ -180,18 +181,12 @@ class zomboidServerController():
             sp.call(self.rcon_conn_string + rcon_command, shell=True)
         
         try:
-            if cmd_flag   == "4h":
-                print(f"{self.current_time.now()} -- {cmd_flag} sent. Sending 4 hours before restart warning.")
+            if cmd_flag in ["1h", "4h"]:
+                print(f"{self.current_time.now()} -- {cmd_flag} sent. Sending {cmd_flag} before restart warning.")
                 try:
-                    sendMessage("\"servermsg \\\"Server will restart in 4 hours\\\"\"")
-                except Exception as error:
-                    print(f"{self.current_time.now()} -- ERROR: {error}")
-            
-            if cmd_flag == "1h":
-                print(f"\n{self.current_time.now()} -- {cmd_flag} sent. Sending 1h before restart warning.")
-                try:
-                    sendMessage("\"servermsg \\\"Server will restart in 1 hour\\\"\"")
-                    self.one_hour_flag = True
+                    sendMessage(f"\"servermsg \\\"Server will restart in {cmd_flag.replace("h","")} hour(s)\\\"\"")
+                    if cmd_flag == "1h":
+                        self.one_hour_flag = True
                 except Exception as error:
                     print(f"{self.current_time.now()} -- ERROR: {error}")
             
@@ -242,18 +237,30 @@ class zomboidServerController():
             if cmd_flag == "quit":
                 print(f"\n{self.current_time.now()} -- {cmd_flag} sent. Shutting down server.")
                 try:
+                    ## Issue a final deathnote to the server and save the map
                     sendMessage("\"servermsg \\\"Server is shutting down.\\\"\"")
                     sendMessage("\"save\"")
+
+                    ## Sleep 5 seconds to allow the final save to take place prior to backing up the server
                     t.sleep(5)
+
+                    ## Backup the world before shutting down the server 
                     self.backupWorld(cmd_flag)
+
+                    ## Send a quit message to shutdown the Zomboid server connection
                     sendMessage("\"quit\"")
+
+                    ## Wait 5 seconds for "quit" command to finish
                     t.sleep(5)
+
+                    ## Call the final stop function to kill the server
                     self.stopServer()
+
                 except Exception as error:
                     print(f"\n{self.current_time.now()} -- ERROR: {error}")
             
             if cmd_flag == "modUpdateCheck":
-                if self.one_hour_flag and self.restart_flag:
+                if self.one_hour_flag or self.restart_flag:
                     print("Server preparing to restart. Cancelling mod update check.\n")
                     return
                 
@@ -268,7 +275,6 @@ class zomboidServerController():
                     ## Thread zomboidSoup instance for faster results and better interoperability with other scripts
                     thread = th.Thread(target=zs.scrapeSteamWorkshop,args=(arg ,response_queue,), daemon=True)
                     thread.start()
-                   # thread.join()
 
                 if os.path.exists(self.mod_csv) and not self.start_flag:
                     ## Check if the current modsList.csv has updated
@@ -302,15 +308,28 @@ class zomboidServerController():
 
     def startServer(self):
         ''' A method for starting a zomboid server instance '''
-        ## Start server
+        ## Start the Zomboid server
         print(f"{self.current_time.now()} -- Starting first server instance via script!\n")
         print('#### Server instance started! Press CTRL-C to safely shutdown, backup, and exit the server. ####\n')
+        
+        ## Backup the world before starting the server
         self.backupWorld("start")
+
+        ## This line starts the server using the command assigned from config.json
+        ## The command is printed to the terminal to verify it's been passed correctly
         sp.call(self.start_server_cmd, shell=True)
         print(f"{self.current_time.now()} -- Now running server-start.sh script...\nCommand: {self.start_server_cmd}")
-        self.start_flag = True ## A flag to manage server state
-        self.serverMessenger("modUpdateCheck") ## Update modList.csv
+        
+        ## A flag to manage server state
+        self.start_flag = True 
+        
+        ## Update modList.csv
+        self.serverMessenger("modUpdateCheck") 
+        
+        ## Sleep 5 minutes to allow the server to finish loading, then send server message
         t.sleep(300)
+        
+        ## Send 4h restart warning to the server
         self.serverMessenger("4h")
 
     def stopServer(self):
@@ -335,7 +354,7 @@ if __name__ == "__main__":
     print("/___\___/_|_|_|_.__/\___/_\__,_| |___/\___|_|  \_/\___|_|   |_|  |_\__,_|_||_\__,_\__, \___|_|   ")
     print("                                                                                  |___/          ")
     print("=================================================================================================")
-    version = "Version - 1.8 (12/20/2023)\nCreated by https://steamcommunity.com/id/Mr_Pink47/\nDiscord: pink9\n© 2023 - Open Source - Free to share and modify"
+    version = "Version - 1.9 (01/04/2024)\nCreated by https://steamcommunity.com/id/Mr_Pink47/\nDiscord: pink9\n© 2024 - Open Source - Free to share and modify"
     print(version)
     print("=================================================================================================")           
     zomboidServerController().coldStart()
