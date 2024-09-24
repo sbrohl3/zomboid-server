@@ -19,7 +19,7 @@ from zomboidSoup import zomboidSoup
 #  Created by https://steamcommunity.com/id/Mr_Pink47/
 #  Discord: pink9
 #
-#  Version - 1.9 (01/04/2024)
+#  Version - 1.10.0 (09/23/2024)
 #  © 2024 - Open Source - Free to share and modify
 #
 # To use this program, first install all Python3 dependencies:
@@ -44,7 +44,7 @@ from zomboidSoup import zomboidSoup
 # NOTE: zomboidSoup.py must be in the same folder as zomboid_server_manager.py
 ################################################################################
 
-class zomboidServerController():
+class ZomboidServerController():
     ''' A zomboid server controller class '''
     
     def __init__(self) -> None:
@@ -61,11 +61,16 @@ class zomboidServerController():
                 self.reboot_threshold       = config_data["server_config"]["reboot_threshold"]
                 ###########################################################
 
-                ## A flag for managing state of the server - Don't Modify
+                ## Flags for managing state of the server - Don't Modify
                 ###########################################################
                 self.one_hour_flag = False
                 self.restart_flag  = False
                 self.start_flag    = False
+                ###########################################################
+
+                ## A list storing current jobs active on the server
+                ###########################################################
+                self.jobs = []
                 ###########################################################
 
                 ## Current Datetime - Don't Modify
@@ -141,24 +146,13 @@ class zomboidServerController():
             self.serverMessenger("quit")
             exit(0)
        
-       ## When Ctrl+C detected, called stopServer()
+        ## When Ctrl+C detected, called stopServer()
         signal(SIGINT, handler)
 
         ## Start a new server instance
         ## and kill any previous instances
         self.stopServer()
         self.startServer()
-
-        ## Set schedules for restarting the server, and checking modlist status
-        s.every(3).hours.do(zsc.serverMessenger, "1h")
-        s.every(4).hours.do(zsc.serverMessenger, "restart")
-        s.every(30).minutes.do(zsc.serverMessenger, "modUpdateCheck")
-
-        while True:
-            # Checks whether a scheduled task
-            # is pending to run or not
-            s.run_pending()
-            t.sleep(1)
 
     def rebootHost(self) -> None:
         ''' A method to reboot the host PC after the server has rebooted x number of times '''
@@ -172,7 +166,24 @@ class zomboidServerController():
         else:
             ## In case of Linux, run reboot with --force
             sp.call("reboot --force")
-            
+    
+    def runScheduler(self):
+        ''' Method to keep the scheduler running '''
+        while True:
+           # Checks whether a scheduled task
+            # is pending to run or not
+            s.run_pending()
+            time.sleep(1)
+
+    def scheduleTasks(self) -> None:
+        ## Set schedules for restarting the server, and checking modlist status
+        one_hour        = s.every(3).hours.do(zsc.serverMessenger, "1h")
+        restart         = s.every(4).hours.do(zsc.serverMessenger, "restart")
+        update_check    = s.every(30).minutes.do(zsc.serverMessenger, "modUpdateCheck")
+
+        ## Store jobs so they can be cancelled later
+        self.jobs.extend([one_hour, restart, update_check])
+
     def serverMessenger(self, cmd_flag) -> None:
         ''' A method for controlling the Zomboid Server and sending messages via RCON '''
         ## Send messages to the server
@@ -332,12 +343,20 @@ class zomboidServerController():
         ## Send 4h restart warning to the server
         self.serverMessenger("4h")
 
+        ## Schedule tasks to run after the server has started
+        self.scheduleTasks()
+
     def stopServer(self):
         ''' A method for stopping instances of a zomboid server '''
         ## Reset all server state flags
         self.one_hour_flag = False
         self.restart_flag  = False
         self.start_flag    = False
+
+        ## Clear the jobs list
+        for job in self.jobs:
+            s.cancel_job(job)
+        self.jobs.clear() 
         
         ## stop server process
         print(f"{self.current_time.now()} -- Cleaning up previous server instance (if any exist)...\n")
@@ -348,16 +367,24 @@ class zomboidServerController():
         t.sleep(5)
 
 if __name__ == "__main__":    
-    print(" ____          _         _    _   ___                        __  __                              ")
-    print("|_  /___ _ __ | |__  ___(_)__| | / __| ___ _ ___ _____ _ _  |  \/  |__ _ _ _  __ _ __ _ ___ _ _  ")
-    print(" / // _ \ '  \| '_ \/ _ \ / _` | \__ \/ -_) '_\ V / -_) '_| | |\/| / _` | ' \/ _` / _` / -_) '_| ")
-    print("/___\___/_|_|_|_.__/\___/_\__,_| |___/\___|_|  \_/\___|_|   |_|  |_\__,_|_||_\__,_\__, \___|_|   ")
-    print("                                                                                  |___/          ")
+    print(r" ____          _         _    _   ___                        __  __                              ")
+    print(r"|_  /___ _ __ | |__  ___(_)__| | / __| ___ _ ___ _____ _ _  |  \/  |__ _ _ _  __ _ __ _ ___ _ _  ")
+    print(r" / // _ \ '  \| '_ \/ _ \ / _` | \__ \/ -_) '_\ V / -_) '_| | |\/| / _` | ' \/ _` / _` / -_) '_| ")
+    print(r"/___\___/_|_|_|_.__/\___/_\__,_| |___/\___|_|  \_/\___|_|   |_|  |_\__,_|_||_\__,_\__, \___|_|   ")
+    print(r"                                                                                  |___/          ")
     print("=================================================================================================")
     version = "Version - 1.9 (01/04/2024)\nCreated by https://steamcommunity.com/id/Mr_Pink47/\nDiscord: pink9\n© 2024 - Open Source - Free to share and modify"
     print(version)
     print("=================================================================================================")           
-    zomboidServerController().coldStart()
+    
+    ## Init the server controller obj
+    zsc = ZomboidServerController()
+    
+    ## Call a server cold start
+    zsc.coldStart()
+
+    ## Start the job scheduler
+    zsc.runScheduler()
 
 
 
