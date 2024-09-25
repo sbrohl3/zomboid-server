@@ -177,9 +177,9 @@ class ZomboidServerController():
 
     def scheduleTasks(self) -> None:
         ## Set schedules for restarting the server, and checking modlist status
-        one_hour        = s.every(3).hours.do(zsc.serverMessenger, "1h")
-        restart         = s.every(4).hours.do(zsc.serverMessenger, "restart")
-        update_check    = s.every(30).minutes.do(zsc.serverMessenger, "modUpdateCheck")
+        one_hour        = s.every(3).hours.from_now().do(zsc.serverMessenger, "1h")
+        restart         = s.every(4).hours.from_now().do(zsc.serverMessenger, "restart")
+        update_check    = s.every(30).minutes.from_now().do(zsc.serverMessenger, "modUpdateCheck")
 
         ## Store jobs so they can be cancelled later
         self.jobs.extend([one_hour, restart, update_check])
