@@ -173,7 +173,7 @@ class ZomboidServerController():
            # Checks whether a scheduled task
             # is pending to run or not
             s.run_pending()
-            time.sleep(1)
+            t.sleep(1)
 
     def scheduleTasks(self) -> None:
         ## Set schedules for restarting the server, and checking modlist status
