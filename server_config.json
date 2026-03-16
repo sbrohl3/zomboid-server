@@ -1,0 +1,17 @@
+{
+    "server_config" :
+    {
+        "start_server_command"              : "nohup /home/user/pzserver/./start-server.sh >/dev/null 2>&1 &",
+        "server_ini_path"                   : "/home/user/Zomboid/Server/servertest.ini", 
+        "mod_csv_path"                      : "/home/user/Zomboid/Server/zomboid_mod_updateList.csv", 
+        "backup_folder_path"                : "/home/user/Zomboid/backups",
+        "world_dict_path"                   : "/home/user/Zomboid/Saves/Multiplayer/servertest/",
+        "server_shell_process_name"         : "start-server.sh",
+        "server_binary_process_name"        : "ProjectZomboid64",
+        "rcon_local_ip"                     : "127.0.0.1",
+        "rcon_local_port"                   : 27015,
+        "rcon_password"                     : "rcon_password",
+        "reboot_enabled"                    : false,
+        "reboot_threshold"                  : 3
+    }
+}
