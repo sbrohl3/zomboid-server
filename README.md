@@ -142,14 +142,12 @@ Press `Ctrl+C` in the terminal running the manager. This triggers a graceful shu
 The `zomboidSoup` module reads workshop mod IDs from `servertest.ini`, scrapes each mod's Steam Workshop page for its "last updated" timestamp using BeautifulSoup, and compares the results against a local CSV (`mod_csv_path`). If any timestamps differ, the server is flagged for restart.
 
 ### IMPORTANT NOTE:
-```
 The server will loop between Steps 1-4 infinitely until the server administrator manually stops the process, or the host is shutdown/reset. 
 
 You can safely press Ctrl+C once to kill the server process gracefully. If you press it twice, the process will be killed instantly!
 You may run the risk of losing your current WorldDict, or corrupting your backup in thise case. You have been warned! 
 
 Should you want to reboot the host after so many pzserver reset cycles, this can be done by setting "reboot_enabled" to "true" in the server_config.json.
-```
 --- 
 
 ## Dependencies
