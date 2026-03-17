@@ -148,8 +148,8 @@ You can safely press Ctrl+C once to kill the server process gracefully. If you p
 You may run the risk of losing your current WorldDict, or corrupting your backup in thise case. You have been warned! 
 
 Should you want to reboot the host after so many pzserver reset cycles, this can be done by setting "reboot_enabled" to "true" in the server_config.json.
---- 
 
+--- 
 ## Dependencies
 
 | Package | Purpose |
