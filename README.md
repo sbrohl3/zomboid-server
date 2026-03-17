@@ -2,7 +2,9 @@
 
 <img src="./pics/zomboid_server_manager.gif" alt="zomboid_server_manager" height="450" width="750" />
 
-A Python-based server management tool for dedicated Project Zomboid servers on Linux. It automates server lifecycle management including scheduled restarts, world backups, and Steam Workshop mod update detection via web scraping.
+A Python-based server management tool for dedicated Project Zomboid servers on Linux. 
+
+It automates server lifecycle management including scheduled restarts, world backups, and Steam Workshop mod update detection via web scraping.
 
 **Created by:** [Mr_Pink47 (pink9)](https://steamcommunity.com/id/Mr_Pink47/)
 **Discord:** pink9
