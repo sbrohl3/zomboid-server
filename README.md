@@ -47,7 +47,7 @@ pip install -r requirements.txt
 3. Download and install the [gorcon rcon-cli](https://github.com/gorcon/rcon-cli/releases) binary to `/usr/bin`:
 
 ```bash
-# Example (check for the latest release version)
+# Extract and move rcon to/usr/bin
 tar -xzf rcon-*.tar.gz
 sudo mv rcon /usr/bin/
 ```
