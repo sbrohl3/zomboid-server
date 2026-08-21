@@ -19,8 +19,8 @@ from zomboidSoup import zomboidSoup
 #  Created by https://steamcommunity.com/id/Mr_Pink47/
 #  Discord: pink9
 #
-#  Version - 1.10.0 (09/23/2024)
-#  © 2024 - Open Source - Free to share and modify
+#  Version - 1.11.0 (08/21/2026)
+#  © 2026 - Open Source - Free to share and modify
 #
 # To use this program, first install all Python3 dependencies:
 #
@@ -78,6 +78,11 @@ class ZomboidServerController():
                 self.current_time = dt.datetime
                 ###########################################################
                 
+                ## Path to PID file - Don't Modify
+                ###########################################################
+                self.pid_file = config_data["server_config"]["pid_file_path"]
+                ###########################################################
+
                 ## Path to start-server script
                 ###########################################################
                 self.start_server_cmd = config_data["server_config"]["start_server_command"]
@@ -86,7 +91,7 @@ class ZomboidServerController():
                 ## Zomboid Soup Paths
                 ###########################################################
                 self.server_ini = config_data["server_config"]["server_ini_path"] # Specify path to server.init
-                self.mod_csv    = config_data["server_config"]["mod_csv_path"] # specify path where to save mod_updateList.csv
+                self.mod_csv    = config_data["server_config"]["mod_csv_path"]    # specify path where to save mod_updateList.csv
                 ###########################################################
 
                 ## Define backup folder path and world dictionary location
@@ -328,8 +333,11 @@ class ZomboidServerController():
 
         ## This line starts the server using the command assigned from config.json
         ## The command is printed to the terminal to verify it's been passed correctly
-        sp.call(self.start_server_cmd, shell=True)
-        print(f"{self.current_time.now()} -- Now running server-start.sh script...\nCommand: {self.start_server_cmd}")
+        proc = sp.Popen(self.start_server_cmd, shell=True)
+        with open(self.pid_file, "w") as f:
+            f.write(str(proc.pid))
+
+        print(f"{self.current_time.now()} -- Now running server-start.sh script...\nCommand: {self.start_server_cmd} (PID {proc.pid})")
         
         ## A flag to manage server state
         self.start_flag = True 
@@ -360,10 +368,31 @@ class ZomboidServerController():
         
         ## stop server process
         print(f"{self.current_time.now()} -- Cleaning up previous server instance (if any exist)...\n")
-        for proc in ps.process_iter():
-            # check whether the process name matches
-            if proc.name() in [self.server_shell_process_name,self.server_binary_process_name]:
-                proc.kill()
+
+        if os.path.exists(self.pid_file):
+            try:
+                with open(self.pid_file, "r") as f:
+                    pid = int(f.read().strip())
+
+                parent = ps.Process(pid)
+                children = parent.children(recursive=True)
+
+                ## Kill children first, then the parent shell process
+                for child in children:
+                    child.kill()
+                parent.kill()
+
+                print(f"{self.current_time.now()} -- Killed PID {pid} and {len(children)} child process(es).\n")
+
+            except ps.NoSuchProcess:
+                print(f"{self.current_time.now()} -- No process found for PID {pid}; already stopped.\n")
+            except Exception as error:
+                print(f"{self.current_time.now()} -- ERROR while stopping server: {error}\n")
+            finally:
+                os.remove(self.pid_file)
+        else:
+            print(f"{self.current_time.now()} -- No PID file found; nothing to stop.\n")
+
         t.sleep(5)
 
 if __name__ == "__main__":    
